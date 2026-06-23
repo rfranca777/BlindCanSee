@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex, nofollow" />
+<title>BlindCanSee — Ao Vivo</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #0b0f14; color: #e8eef5;
+    font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column; min-height: 100vh;
+  }
+  header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; background: #11161d; border-bottom: 1px solid #1f2937;
+    position: sticky; top: 0;
+  }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .2px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #6b7280; flex: 0 0 auto; }
+  .dot.online { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+  .dot.stale  { background: #f59e0b; }
+  .status { font-size: 12px; color: #9aa7b6; margin-left: auto; }
+  .frame-wrap {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    background: #000; position: relative; overflow: hidden;
+  }
+  #frame { max-width: 100%; max-height: 100%; display: none; }
+  .placeholder { color: #6b7280; font-size: 14px; padding: 24px; text-align: center; line-height: 1.5; }
+  .overlay {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,.82));
+    padding: 28px 16px 14px;
+  }
+  .line { margin: 4px 0; font-size: 15px; line-height: 1.35; }
+  .who { font-weight: 700; }
+  .baby .who { color: #f472b6; }
+  .carlao .who { color: #60a5fa; }
+  footer { padding: 8px 14px; font-size: 11px; color: #64748b; text-align: center; border-top: 1px solid #1f2937; }
+  .key-prompt { padding: 24px; text-align: center; }
+  .key-prompt input { padding: 10px; width: 100%; max-width: 320px; border-radius: 8px; border: 1px solid #334155; background: #0f1620; color: #e8eef5; }
+  .key-prompt button { margin-top: 12px; padding: 10px 18px; border: 0; border-radius: 8px; background: #2563eb; color: #fff; font-weight: 600; }
+</style>
+</head>
+<body>
+  <header>
+    <span id="dot" class="dot"></span>
+    <h1>BlindCanSee — Ao Vivo</h1>
+    <span id="status" class="status">a ligar…</span>
+  </header>
+
+  <div class="frame-wrap" id="wrap">
+    <div class="placeholder" id="placeholder">
+      À espera da transmissão.<br />
+      O Carlão precisa de dizer "<b>liga a transmissão</b>" à Baby.
+    </div>
+    <img id="frame" alt="Imagem ao vivo da câmara" />
+    <div class="overlay" id="overlay" style="display:none">
+      <div class="line carlao" id="lineCarlao" style="display:none"><span class="who">Carlão:</span> <span id="txtCarlao"></span></div>
+      <div class="line baby" id="lineBaby" style="display:none"><span class="who">Baby:</span> <span id="txtBaby"></span></div>
+    </div>
+  </div>
+
+  <footer id="foot">© BlindCanSee — privado. A imagem só aparece quando a transmissão está ligada.</footer>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAOJxGLiDuGJld11STMJ3Ek_u53ArGCYvI",
+      authDomain: "blindcansee.firebaseapp.com",
+      databaseURL: "https://blindcansee-default-rtdb.firebaseio.com",
+      projectId: "blindcansee",
+      storageBucket: "blindcansee.firebasestorage.app",
+      messagingSenderId: "487582597115",
+      appId: "1:487582597115:web:c3f5e8cd51183cf6e4155e"
+    };
+
+    // Chave secreta vem do #fragmento do link (NÃO fica na página) — defesa de privacidade.
+    let key = (location.hash || "").replace(/^#/, "").trim();
+
+    const el = (id) => document.getElementById(id);
+    const dot = el("dot"), statusEl = el("status"), img = el("frame"),
+          placeholder = el("placeholder"), overlay = el("overlay");
+
+    function askKey() {
+      el("wrap").innerHTML =
+        '<div class="key-prompt"><p>Cole a chave de acesso do link:</p>' +
+        '<input id="k" placeholder="chave" autocomplete="off" /><br/>' +
+        '<button id="go">Abrir</button></div>';
+      el("go").onclick = () => { location.hash = el("k").value.trim(); location.reload(); };
+    }
+    if (!key) { askKey(); throw new Error("sem chave"); }
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const base = "live/" + key;
+
+    let lastFrameTs = 0;
+    onValue(ref(db, base + "/frame"), (snap) => {
+      const v = snap.val();
+      if (v && v.img) {
+        img.src = "data:image/jpeg;base64," + v.img;
+        img.style.display = "block";
+        placeholder.style.display = "none";
+        overlay.style.display = "block";
+        lastFrameTs = v.ts || Date.now();
+      }
+    });
+
+    onValue(ref(db, base + "/meta"), (snap) => {
+      const m = snap.val() || {};
+      if (m.status === "offline") {
+        img.style.display = "none";
+        overlay.style.display = "none";
+        placeholder.style.display = "block";
+        placeholder.innerHTML = "Transmissão desligada pelo Carlão.";
+      }
+    });
+
+    onValue(ref(db, base + "/transcript"), (snap) => {
+      const t = snap.val();
+      if (!t || !t.text) return;
+      if (t.who === "baby") {
+        el("txtBaby").textContent = t.text;
+        el("lineBaby").style.display = "block";
+      } else {
+        el("txtCarlao").textContent = t.text;
+        el("lineCarlao").style.display = "block";
+      }
+    });
+
+    // Indicador de estado: verde se frame fresco (<6s), âmbar se velho, cinza se nada.
+    setInterval(() => {
+      if (!lastFrameTs) { dot.className = "dot"; statusEl.textContent = "à espera…"; return; }
+      const age = Date.now() - lastFrameTs;
+      if (age < 6000) { dot.className = "dot online"; statusEl.textContent = "ao vivo"; }
+      else { dot.className = "dot stale"; statusEl.textContent = "sem imagem há " + Math.round(age/1000) + "s"; }
+    }, 1000);
+  </script>
+</body>
+</html>
