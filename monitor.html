@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlindCanSee — Monitor em Tempo Real</title>
+<style>
+  :root { --bg:#121212; --surface:#1e1e1e; --primary:#42a5f5; --success:#66bb6a; --danger:#ef5350; --warning:#ff9800; --text:#fff; --muted:#90a4ae; --border:#424242; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',sans-serif; padding:16px; }
+  h1 { color:var(--primary); font-size:1.4rem; margin-bottom:4px; }
+  .sub { color:var(--muted); font-size:.85rem; margin-bottom:16px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:12px; }
+  .card h2 { font-size:.8rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
+  .pill { display:inline-block; padding:2px 10px; border-radius:20px; font-size:.75rem; font-weight:600; margin:2px; }
+  .pill.baby { background:#1565c033; color:var(--primary); border:1px solid #1565c0; }
+  .pill.user { background:#33691e33; color:var(--success); border:1px solid #33691e; }
+  .pill.sys  { background:#37474f55; color:var(--muted); border:1px solid var(--border); }
+  .log-line { font-size:.82rem; padding:4px 0; border-bottom:1px solid #2a2a2a; display:flex; gap:8px; align-items:flex-start; }
+  .log-line .ts { color:var(--muted); min-width:56px; font-size:.75rem; }
+  .log-line .lbl { min-width:70px; }
+  .log-line .txt { flex:1; word-break:break-word; color:#e0e0e0; }
+  .status-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; }
+  .dot-ok { background:var(--success); }
+  .dot-err { background:var(--danger); }
+  .dot-warn { background:var(--warning); }
+  input[type=text], input[type=password] { background:#1a1a1a; border:1px solid var(--border); border-radius:8px; color:var(--text); padding:8px 12px; width:100%; font-size:.9rem; margin-bottom:8px; }
+  button { background:var(--primary); color:#000; border:none; border-radius:8px; padding:8px 20px; font-size:.9rem; font-weight:700; cursor:pointer; margin-right:6px; }
+  button.danger { background:var(--danger); color:#fff; }
+  button.muted  { background:var(--surface); color:var(--muted); border:1px solid var(--border); }
+  .refresh-bar { display:flex; align-items:center; gap:10px; margin-bottom:12px; font-size:.82rem; color:var(--muted); }
+  .refresh-bar span { color:var(--text); }
+  #send-area { display:none; }
+  #send-area.visible { display:block; }
+  .note { font-size:.78rem; color:var(--muted); margin-top:4px; line-height:1.4; }
+</style>
+</head>
+<body>
+
+<h1>👁 BlindCanSee — Monitor</h1>
+<p class="sub">Visualiza em tempo real o que a Baby vê, ouve e diz. Actualiza a cada 15s.</p>
+
+<!-- Token setup -->
+<div class="card" id="token-card">
+  <h2>🔑 Acesso (GitHub PAT)</h2>
+  <p class="note" style="margin-bottom:8px;">O repo de field-logs é privado. Introduz um GitHub Personal Access Token com scope <code>repo:read</code>. Fica guardado só no browser (localStorage).</p>
+  <input type="password" id="tok" placeholder="ghp_..." autocomplete="off">
+  <button onclick="saveToken()">Guardar e ligar</button>
+  <button class="muted" onclick="clearToken()">Limpar token</button>
+</div>
+
+<!-- Status bar -->
+<div class="refresh-bar">
+  <span class="status-dot dot-warn" id="dot"></span>
+  <span id="status-txt">A aguardar token…</span>
+  &nbsp;|&nbsp; Último fetch: <span id="last-fetch">—</span>
+  &nbsp;|&nbsp; <button class="muted" style="padding:3px 10px;font-size:.75rem;" onclick="poll()">↻ Agora</button>
+  &nbsp;|&nbsp; <button class="muted" style="padding:3px 10px;font-size:.75rem;" onclick="toggleSend()">✉ Enviar à Baby</button>
+</div>
+
+<!-- Send to Baby (remote command via GitHub Issue) -->
+<div id="send-area">
+  <div class="card">
+    <h2>✉ Enviar mensagem à Baby</h2>
+    <p class="note" style="margin-bottom:8px;">Cria uma Issue com label <code>remote-cmd</code>. A Baby vai processar na próxima actualização de polling (implementar no vc27).</p>
+    <input type="text" id="cmd-input" placeholder="Mensagem para a Baby…">
+    <button onclick="sendCmd()">Enviar</button>
+  </div>
+</div>
+
+<!-- Live log feed -->
+<div class="card" id="log-card">
+  <h2>📡 Feed em tempo real</h2>
+  <div id="log-feed"><p style="color:var(--muted)">A aguardar logs…</p></div>
+</div>
+
+<!-- Device + session summary -->
+<div class="card">
+  <h2>📱 Última sessão</h2>
+  <div id="session-info" style="font-size:.85rem;color:var(--muted)">—</div>
+</div>
+
+<script>
+const OWNER = 'rfranca777', REPO = 'BlindCanSeeAI', LABEL = 'field-logs';
+let token = localStorage.getItem('bcs_pat') || '';
+let refreshTimer = null;
+
+function saveToken() {
+  const v = document.getElementById('tok').value.trim();
+  if (!v) return;
+  localStorage.setItem('bcs_pat', v);
+  token = v;
+  document.getElementById('tok').value = '';
+  document.getElementById('token-card').style.display = 'none';
+  startPolling();
+}
+function clearToken() {
+  localStorage.removeItem('bcs_pat');
+  token = '';
+  document.getElementById('token-card').style.display = 'block';
+  clearInterval(refreshTimer);
+  setStatus('warn', 'Token limpo — introduz um novo.');
+}
+function toggleSend() {
+  const a = document.getElementById('send-area');
+  a.classList.toggle('visible');
+}
+function setStatus(level, msg) {
+  const dot = document.getElementById('dot');
+  dot.className = 'status-dot ' + (level === 'ok' ? 'dot-ok' : level === 'err' ? 'dot-err' : 'dot-warn');
+  document.getElementById('status-txt').textContent = msg;
+}
+
+async function poll() {
+  if (!token) return;
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${OWNER}/${REPO}/issues?labels=${LABEL}&per_page=5&state=all`,
+      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' } }
+    );
+    if (!res.ok) { setStatus('err', `Erro HTTP ${res.status}`); return; }
+    const issues = await res.json();
+    document.getElementById('last-fetch').textContent = new Date().toLocaleTimeString('pt-BR');
+    setStatus('ok', `${issues.length} log(s) carregado(s)`);
+    renderLogs(issues);
+  } catch (e) {
+    setStatus('err', 'Erro de rede: ' + e.message);
+  }
+}
+
+function renderLogs(issues) {
+  const feed = document.getElementById('log-feed');
+  const sessionInfo = document.getElementById('session-info');
+  const lines = [];
+  let lastDevice = '?', lastUptime = '?', lastVc = '?', lastSession = '?';
+
+  for (const issue of issues) {
+    const body = issue.body || '';
+    // Extract JSONL block
+    const match = body.match(/```jsonl\n([\s\S]*?)```/);
+    if (!match) continue;
+    const jsonl = match[1].trim().split('\n');
+
+    // Parse issue metadata
+    const devM = body.match(/Device\*\*: ([^\n]+)/);
+    const upM  = body.match(/Uptime\*\*: ([^\n]+)/);
+    const sessM= body.match(/Sessao\*\*: `([^`]+)`/);
+    if (devM) lastDevice = devM[1];
+    if (upM)  lastUptime = upM[1];
+    if (sessM) lastSession = sessM[1].substring(0,8) + '…';
+
+    for (const raw of jsonl) {
+      try {
+        const obj = JSON.parse(raw);
+        const ts = obj.ts ? new Date(obj.ts).toLocaleTimeString('pt-BR') : '';
+        const type = obj.type || (obj.payload?.type) || '';
+        const vc   = obj.payload?.vc || obj.vc;
+        if (vc) lastVc = vc;
+        let label = '', text = '', cls = 'sys';
+        if (type === 'baby_output' || obj.payload?.type === 'baby_output') {
+          label = 'Baby'; text = obj.payload?.text || obj.text || ''; cls = 'baby';
+        } else if (type === 'user_input') {
+          label = 'Carlão'; text = obj.payload?.text || obj.text || ''; cls = 'user';
+        } else if (type === 'service_create') {
+          label = 'Arranque'; text = `vc:${obj.payload?.vc} ${obj.payload?.vn || ''}`; cls = 'sys';
+        } else if (type === 'live_state') {
+          label = 'Estado'; text = obj.payload?.state || obj.state || ''; cls = 'sys';
+        } else if (type === 'vision_source') {
+          label = 'Visão'; text = obj.payload?.source || obj.source || ''; cls = 'sys';
+        } else if (type === 'turn_first_token') {
+          label = 'TTFT'; text = `${obj.payload?.ttft_ms || obj.ttft_ms}ms`; cls = 'sys';
+        } else if (type === 'street_narration') {
+          label = 'Rua'; text = `${obj.payload?.street || ''} ${obj.payload?.bairro || ''}`; cls = 'sys';
+        } else if (type === 'noise_input') {
+          label = 'Ruído'; text = obj.payload?.text || ''; cls = 'sys';
+        } else {
+          label = type; text = JSON.stringify(obj.payload || {}).substring(0, 80);
+        }
+        if (!text) continue;
+        lines.push(`<div class="log-line"><span class="ts">${ts}</span><span class="lbl"><span class="pill ${cls}">${label}</span></span><span class="txt">${escHtml(text)}</span></div>`);
+      } catch (_) {}
+    }
+  }
+
+  sessionInfo.innerHTML = `<b>Device:</b> ${escHtml(lastDevice)} &nbsp;|&nbsp; <b>vc:</b> ${lastVc} &nbsp;|&nbsp; <b>Uptime:</b> ${lastUptime} &nbsp;|&nbsp; <b>Sessão:</b> ${lastSession}`;
+  feed.innerHTML = lines.length ? lines.join('') : '<p style="color:var(--muted)">Sem eventos ainda.</p>';
+}
+
+async function sendCmd() {
+  const text = document.getElementById('cmd-input').value.trim();
+  if (!text || !token) return;
+  await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/issues`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: `remote-cmd ${new Date().toISOString()}`, body: text, labels: ['remote-cmd'] }),
+  });
+  document.getElementById('cmd-input').value = '';
+  alert('Comando enviado! A Baby vai processar na próxima iteração (vc27).');
+}
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function startPolling() {
+  setStatus('warn', 'A ligar…');
+  poll();
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(poll, 15000);
+}
+
+// Auto-start if token exists
+if (token) {
+  document.getElementById('token-card').style.display = 'none';
+  startPolling();
+} else {
+  setStatus('warn', 'Introduz o token GitHub PAT para começar.');
+}
+</script>
+</body>
+</html>
