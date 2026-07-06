@@ -3,217 +3,240 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BlindCanSee — Monitor em Tempo Real</title>
+<title>BlindCanSee — Monitor ao Vivo</title>
 <style>
-  :root { --bg:#121212; --surface:#1e1e1e; --primary:#42a5f5; --success:#66bb6a; --danger:#ef5350; --warning:#ff9800; --text:#fff; --muted:#90a4ae; --border:#424242; }
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',sans-serif; padding:16px; }
-  h1 { color:var(--primary); font-size:1.4rem; margin-bottom:4px; }
-  .sub { color:var(--muted); font-size:.85rem; margin-bottom:16px; }
-  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:12px; }
-  .card h2 { font-size:.8rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
-  .pill { display:inline-block; padding:2px 10px; border-radius:20px; font-size:.75rem; font-weight:600; margin:2px; }
-  .pill.baby { background:#1565c033; color:var(--primary); border:1px solid #1565c0; }
-  .pill.user { background:#33691e33; color:var(--success); border:1px solid #33691e; }
-  .pill.sys  { background:#37474f55; color:var(--muted); border:1px solid var(--border); }
-  .log-line { font-size:.82rem; padding:4px 0; border-bottom:1px solid #2a2a2a; display:flex; gap:8px; align-items:flex-start; }
-  .log-line .ts { color:var(--muted); min-width:56px; font-size:.75rem; }
-  .log-line .lbl { min-width:70px; }
-  .log-line .txt { flex:1; word-break:break-word; color:#e0e0e0; }
-  .status-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; }
-  .dot-ok { background:var(--success); }
-  .dot-err { background:var(--danger); }
-  .dot-warn { background:var(--warning); }
-  input[type=text], input[type=password] { background:#1a1a1a; border:1px solid var(--border); border-radius:8px; color:var(--text); padding:8px 12px; width:100%; font-size:.9rem; margin-bottom:8px; }
-  button { background:var(--primary); color:#000; border:none; border-radius:8px; padding:8px 20px; font-size:.9rem; font-weight:700; cursor:pointer; margin-right:6px; }
-  button.danger { background:var(--danger); color:#fff; }
-  button.muted  { background:var(--surface); color:var(--muted); border:1px solid var(--border); }
-  .refresh-bar { display:flex; align-items:center; gap:10px; margin-bottom:12px; font-size:.82rem; color:var(--muted); }
-  .refresh-bar span { color:var(--text); }
-  #send-area { display:none; }
-  #send-area.visible { display:block; }
-  .note { font-size:.78rem; color:var(--muted); margin-top:4px; line-height:1.4; }
+  :root{--bg:#0d1117;--s:#161b22;--b:#30363d;--p:#58a6ff;--ok:#3fb950;--err:#f85149;--warn:#d29922;--t:#e6edf3;--m:#8b949e}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--t);font-family:'Segoe UI',system-ui,sans-serif;padding:16px;max-width:900px;margin:0 auto}
+  h1{color:var(--p);font-size:1.5rem;margin-bottom:2px}
+  .sub{color:var(--m);font-size:.82rem;margin-bottom:16px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:600px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--s);border:1px solid var(--b);border-radius:10px;padding:14px}
+  .card h2{font-size:.72rem;color:var(--m);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px}
+  .dot-ok{background:var(--ok)}.dot-err{background:var(--err)}.dot-warn{background:var(--warn)}
+  /* Transcricao */
+  #conv{max-height:480px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+  .msg{padding:8px 12px;border-radius:8px;font-size:.88rem;line-height:1.5;max-width:88%}
+  .msg.baby{background:#1565c022;border:1px solid #1565c055;color:#90caf9;align-self:flex-start}
+  .msg.user{background:#1b5e2022;border:1px solid #1b5e2055;color:#a5d6a7;align-self:flex-end}
+  .msg .ts{font-size:.7rem;color:var(--m);margin-top:3px}
+  /* Status bar */
+  .bar{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:.8rem;color:var(--m);flex-wrap:wrap}
+  .bar span{color:var(--t)}
+  btn{background:var(--s);color:var(--m);border:1px solid var(--b);border-radius:6px;padding:4px 12px;font-size:.78rem;cursor:pointer}
+  button{background:var(--p);color:#000;border:none;border-radius:8px;padding:7px 18px;font-size:.88rem;font-weight:700;cursor:pointer}
+  button.sec{background:var(--s);color:var(--m);border:1px solid var(--b)}
+  input[type=password],input[type=text]{background:#0d1117;border:1px solid var(--b);border-radius:8px;color:var(--t);padding:8px 12px;width:100%;font-size:.88rem;margin-bottom:8px}
+  .note{font-size:.76rem;color:var(--m);line-height:1.5;margin-bottom:10px}
+  .kv{display:flex;justify-content:space-between;font-size:.82rem;padding:3px 0;border-bottom:1px solid var(--b)}
+  .kv:last-child{border:none}
+  .kv .k{color:var(--m)}.kv .v{color:var(--t);font-weight:600}
+  .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.72rem;font-weight:700;border:1px solid}
+  .badge.ok{color:var(--ok);border-color:var(--ok)}
+  .badge.err{color:var(--err);border-color:var(--err)}
+  .badge.warn{color:var(--warn);border-color:var(--warn)}
+  /* Camera placeholder */
+  #cam-area{background:#0d1117;border:1px solid var(--b);border-radius:8px;min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px;text-align:center}
+  #last-desc{font-size:.82rem;color:#90caf9;line-height:1.5;max-height:120px;overflow-y:auto}
+  #last-frame-ts{font-size:.72rem;color:var(--m);margin-top:4px}
+  .pulse{animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 </style>
 </head>
 <body>
 
-<h1>👁 BlindCanSee — Monitor</h1>
-<p class="sub">Visualiza em tempo real o que a Baby vê, ouve e diz. Actualiza a cada 15s.</p>
+<h1>👁 BlindCanSee — Monitor ao Vivo</h1>
+<p class="sub" id="subtitle">O que a Baby vê, ouve e diz — em tempo real. Atualiza a cada 10s.</p>
 
 <!-- Token setup -->
-<div class="card" id="token-card">
-  <h2>🔑 Acesso (GitHub PAT)</h2>
-  <p class="note" style="margin-bottom:8px;">O repo de field-logs é privado. Introduz um GitHub Personal Access Token com scope <code>repo:read</code>. Fica guardado só no browser (localStorage).</p>
-  <input type="password" id="tok" placeholder="ghp_..." autocomplete="off">
-  <button onclick="saveToken()">Guardar e ligar</button>
-  <button class="muted" onclick="clearToken()">Limpar token</button>
-</div>
-
-<!-- Status bar -->
-<div class="refresh-bar">
-  <span class="status-dot dot-warn" id="dot"></span>
-  <span id="status-txt">A aguardar token…</span>
-  &nbsp;|&nbsp; Último fetch: <span id="last-fetch">—</span>
-  &nbsp;|&nbsp; <button class="muted" style="padding:3px 10px;font-size:.75rem;" onclick="poll()">↻ Agora</button>
-  &nbsp;|&nbsp; <button class="muted" style="padding:3px 10px;font-size:.75rem;" onclick="toggleSend()">✉ Enviar à Baby</button>
-</div>
-
-<!-- Send to Baby (remote command via GitHub Issue) -->
-<div id="send-area">
-  <div class="card">
-    <h2>✉ Enviar mensagem à Baby</h2>
-    <p class="note" style="margin-bottom:8px;">Cria uma Issue com label <code>remote-cmd</code>. A Baby vai processar na próxima actualização de polling (implementar no vc27).</p>
-    <input type="text" id="cmd-input" placeholder="Mensagem para a Baby…">
-    <button onclick="sendCmd()">Enviar</button>
+<div class="card" id="token-card" style="margin-bottom:12px">
+  <h2>🔑 Acesso GitHub</h2>
+  <p class="note">Token PAT com scope <code>repo</code> (leitura). Fica só no browser (localStorage), nunca enviado a terceiros.</p>
+  <input type="password" id="tok" placeholder="ghp_…" autocomplete="off">
+  <div style="display:flex;gap:8px">
+    <button onclick="saveToken()">Ligar</button>
+    <button class="sec" onclick="clearToken()">Limpar token</button>
   </div>
 </div>
 
-<!-- Live log feed -->
-<div class="card" id="log-card">
-  <h2>📡 Feed em tempo real</h2>
-  <div id="log-feed"><p style="color:var(--muted)">A aguardar logs…</p></div>
+<!-- Status -->
+<div class="bar">
+  <span class="dot dot-warn" id="dot"></span>
+  <span id="status-txt">A aguardar token…</span>
+  &nbsp;·&nbsp; Atualizado: <span id="last-fetch">—</span>
+  &nbsp;·&nbsp; <button class="sec" style="padding:3px 10px;font-size:.75rem" onclick="poll()">↻ Agora</button>
 </div>
 
-<!-- Device + session summary -->
-<div class="card">
-  <h2>📱 Última sessão</h2>
-  <div id="session-info" style="font-size:.85rem;color:var(--muted)">—</div>
+<div class="grid">
+  <!-- Conversa (transcricao) -->
+  <div class="card" style="grid-row:span 2">
+    <h2>💬 Transcrição em Tempo Real</h2>
+    <div id="conv"><p style="color:var(--m);font-size:.82rem">A aguardar logs…</p></div>
+  </div>
+
+  <!-- O que a Baby está a ver (descricao) -->
+  <div class="card">
+    <h2>📷 O que a Baby está a Ver</h2>
+    <div id="cam-area">
+      <div style="font-size:2rem">🕶️</div>
+      <p style="color:var(--m);font-size:.8rem" id="cam-src">—</p>
+      <div id="last-desc" style="color:var(--m)">Ainda sem descrição…</div>
+      <div id="last-frame-ts"></div>
+    </div>
+  </div>
+
+  <!-- Info da sessao -->
+  <div class="card">
+    <h2>📱 Sessão Atual</h2>
+    <div id="sess-info">
+      <div class="kv"><span class="k">Dispositivo</span><span class="v" id="si-dev">—</span></div>
+      <div class="kv"><span class="k">Versão (vc)</span><span class="v" id="si-vc">—</span></div>
+      <div class="kv"><span class="k">Estado Live</span><span class="v" id="si-live">—</span></div>
+      <div class="kv"><span class="k">Visão</span><span class="v" id="si-vis">—</span></div>
+      <div class="kv"><span class="k">TTFT médio</span><span class="v" id="si-ttft">—</span></div>
+      <div class="kv"><span class="k">Uptime</span><span class="v" id="si-up">—</span></div>
+      <div class="kv"><span class="k">Última atividade</span><span class="v" id="si-ts">—</span></div>
+    </div>
+  </div>
 </div>
 
 <script>
-const OWNER = 'rfranca777', REPO = 'BlindCanSeeAI', LABEL = 'field-logs';
-let token = localStorage.getItem('bcs_pat') || '';
-let refreshTimer = null;
+const OWNER='rfranca777',REPO='BlindCanSeeAI',LABEL='field-logs';
+let token=localStorage.getItem('bcs_pat')||'';
+let timer=null,allMsgs=[],ttfts=[];
 
-function saveToken() {
-  const v = document.getElementById('tok').value.trim();
-  if (!v) return;
-  localStorage.setItem('bcs_pat', v);
-  token = v;
-  document.getElementById('tok').value = '';
-  document.getElementById('token-card').style.display = 'none';
-  startPolling();
+function saveToken(){
+  const v=document.getElementById('tok').value.trim();
+  if(!v)return;
+  localStorage.setItem('bcs_pat',v);token=v;
+  document.getElementById('tok').value='';
+  document.getElementById('token-card').style.display='none';
+  start();
 }
-function clearToken() {
-  localStorage.removeItem('bcs_pat');
-  token = '';
-  document.getElementById('token-card').style.display = 'block';
-  clearInterval(refreshTimer);
-  setStatus('warn', 'Token limpo — introduz um novo.');
+function clearToken(){
+  localStorage.removeItem('bcs_pat');token='';
+  document.getElementById('token-card').style.display='block';
+  clearInterval(timer);setDot('warn','Token limpo.');
 }
-function toggleSend() {
-  const a = document.getElementById('send-area');
-  a.classList.toggle('visible');
-}
-function setStatus(level, msg) {
-  const dot = document.getElementById('dot');
-  dot.className = 'status-dot ' + (level === 'ok' ? 'dot-ok' : level === 'err' ? 'dot-err' : 'dot-warn');
-  document.getElementById('status-txt').textContent = msg;
+function setDot(l,m){
+  document.getElementById('dot').className='dot dot-'+(l==='ok'?'ok':l==='err'?'err':'warn');
+  document.getElementById('status-txt').textContent=m;
 }
 
-async function poll() {
-  if (!token) return;
-  try {
-    const res = await fetch(
-      `https://api.github.com/repos/${OWNER}/${REPO}/issues?labels=${LABEL}&per_page=5&state=all`,
-      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' } }
+async function poll(){
+  if(!token)return;
+  try{
+    const r=await fetch(
+      `https://api.github.com/repos/${OWNER}/${REPO}/issues?labels=${LABEL}&per_page=8&state=all`,
+      {headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json'}}
     );
-    if (!res.ok) { setStatus('err', `Erro HTTP ${res.status}`); return; }
-    const issues = await res.json();
-    document.getElementById('last-fetch').textContent = new Date().toLocaleTimeString('pt-BR');
-    setStatus('ok', `${issues.length} log(s) carregado(s)`);
-    renderLogs(issues);
-  } catch (e) {
-    setStatus('err', 'Erro de rede: ' + e.message);
-  }
+    if(!r.ok){setDot('err',`Erro HTTP ${r.status}`);return;}
+    const issues=await r.json();
+    document.getElementById('last-fetch').textContent=new Date().toLocaleTimeString('pt-BR');
+    setDot('ok',`${issues.length} log(s) — ao vivo`);
+    parse(issues);
+  }catch(e){setDot('err','Rede: '+e.message);}
 }
 
-function renderLogs(issues) {
-  const feed = document.getElementById('log-feed');
-  const sessionInfo = document.getElementById('session-info');
-  const lines = [];
-  let lastDevice = '?', lastUptime = '?', lastVc = '?', lastSession = '?';
+function parse(issues){
+  const msgs=[],sinfo={dev:'—',vc:'—',live:'—',vis:'—',up:'—',ts:'—'};
+  let lastDesc='',lastDescTs='',ttftsNew=[];
 
-  for (const issue of issues) {
-    const body = issue.body || '';
-    // Extract JSONL block
-    const match = body.match(/```jsonl\n([\s\S]*?)```/);
-    if (!match) continue;
-    const jsonl = match[1].trim().split('\n');
+  for(const iss of issues){
+    // extract device / uptime from issue body markdown
+    const bdy=iss.body||'';
+    const dM=bdy.match(/Device\*\*:\s*([^\n]+)/);
+    const uM=bdy.match(/Uptime\*\*:\s*([^\n]+)/);
+    if(dM)sinfo.dev=dM[1].trim();
+    if(uM)sinfo.up=uM[1].trim();
 
-    // Parse issue metadata
-    const devM = body.match(/Device\*\*: ([^\n]+)/);
-    const upM  = body.match(/Uptime\*\*: ([^\n]+)/);
-    const sessM= body.match(/Sessao\*\*: `([^`]+)`/);
-    if (devM) lastDevice = devM[1];
-    if (upM)  lastUptime = upM[1];
-    if (sessM) lastSession = sessM[1].substring(0,8) + '…';
+    const block=bdy.match(/```(?:jsonl)?\n([\s\S]*?)```/);
+    if(!block)continue;
+    const lines=block[1].trim().split('\n');
 
-    for (const raw of jsonl) {
-      try {
-        const obj = JSON.parse(raw);
-        const ts = obj.ts ? new Date(obj.ts).toLocaleTimeString('pt-BR') : '';
-        const type = obj.type || (obj.payload?.type) || '';
-        const vc   = obj.payload?.vc || obj.vc;
-        if (vc) lastVc = vc;
-        let label = '', text = '', cls = 'sys';
-        if (type === 'baby_output' || obj.payload?.type === 'baby_output') {
-          label = 'Baby'; text = obj.payload?.text || obj.text || ''; cls = 'baby';
-        } else if (type === 'user_input') {
-          label = 'Carlão'; text = obj.payload?.text || obj.text || ''; cls = 'user';
-        } else if (type === 'service_create') {
-          label = 'Arranque'; text = `vc:${obj.payload?.vc} ${obj.payload?.vn || ''}`; cls = 'sys';
-        } else if (type === 'live_state') {
-          label = 'Estado'; text = obj.payload?.state || obj.state || ''; cls = 'sys';
-        } else if (type === 'vision_source') {
-          label = 'Visão'; text = obj.payload?.source || obj.source || ''; cls = 'sys';
-        } else if (type === 'turn_first_token') {
-          label = 'TTFT'; text = `${obj.payload?.ttft_ms || obj.ttft_ms}ms`; cls = 'sys';
-        } else if (type === 'street_narration') {
-          label = 'Rua'; text = `${obj.payload?.street || ''} ${obj.payload?.bairro || ''}`; cls = 'sys';
-        } else if (type === 'noise_input') {
-          label = 'Ruído'; text = obj.payload?.text || ''; cls = 'sys';
-        } else {
-          label = type; text = JSON.stringify(obj.payload || {}).substring(0, 80);
+    for(const raw of lines){
+      let obj;try{obj=JSON.parse(raw)}catch(_){continue}
+      const type=obj.type||'';
+      const pay=obj.payload||obj;
+      const ts=obj.ts?new Date(obj.ts).toLocaleTimeString('pt-BR'):'';
+
+      if(pay.vc)sinfo.vc='vc:'+pay.vc;
+      if(type==='live_state'||(pay.state)){const s=pay.state||'';if(s)sinfo.live=s;}
+      if(type==='vision_source'){sinfo.vis=pay.source||'—';}
+      if(type==='turn_first_token'&&pay.ttft_ms){ttftsNew.push(pay.ttft_ms);}
+      if(type==='service_create'&&pay.ts_iso){sinfo.ts=new Date(pay.ts_iso).toLocaleTimeString('pt-BR');}
+
+      // Baby fala — montar texto completo por sessao+timestamp
+      if(type==='baby_output'&&pay.text){
+        const last=msgs[msgs.length-1];
+        if(last&&last.who==='baby'&&last.ts===ts){
+          last.text+=pay.text;
+        }else{
+          msgs.push({who:'baby',text:pay.text,ts,raw_ts:obj.ts||0});
         }
-        if (!text) continue;
-        lines.push(`<div class="log-line"><span class="ts">${ts}</span><span class="lbl"><span class="pill ${cls}">${label}</span></span><span class="txt">${escHtml(text)}</span></div>`);
-      } catch (_) {}
+        // O que a baby ve — capturar descricoes visuais (frases longas da baby que descrevem cena)
+        const t=pay.text.toLowerCase();
+        const isDesc=t.length>20&&(t.includes('vejo')||t.includes('tô vendo')||t.includes('câmera')||
+          t.includes('imagem')||t.includes('escuro')||t.includes('aqui')||t.includes('frente')||
+          t.includes('direita')||t.includes('esquerda')||t.includes('metros'));
+        if(isDesc){lastDesc+=pay.text;lastDescTs=ts;}
+      }
+      if(type==='user_input'&&pay.text){
+        msgs.push({who:'user',text:pay.text,ts,raw_ts:obj.ts||0});
+      }
     }
   }
 
-  sessionInfo.innerHTML = `<b>Device:</b> ${escHtml(lastDevice)} &nbsp;|&nbsp; <b>vc:</b> ${lastVc} &nbsp;|&nbsp; <b>Uptime:</b> ${lastUptime} &nbsp;|&nbsp; <b>Sessão:</b> ${lastSession}`;
-  feed.innerHTML = lines.length ? lines.join('') : '<p style="color:var(--muted)">Sem eventos ainda.</p>';
+  // sort by time
+  msgs.sort((a,b)=>a.raw_ts-b.raw_ts);
+
+  // render conversa — merge com existentes para nao flickar
+  const conv=document.getElementById('conv');
+  const prevCount=conv.querySelectorAll('.msg').length;
+  if(msgs.length!==prevCount){
+    conv.innerHTML=msgs.map(m=>`
+      <div class="msg ${m.who}">
+        ${esc(m.text)}
+        <div class="ts">${m.ts==='00:00:00'?'':m.ts} &nbsp;·&nbsp; ${m.who==='baby'?'👁 Baby':'🧑 Carlão'}</div>
+      </div>`).join('');
+    conv.scrollTop=conv.scrollHeight;
+  }
+
+  // atualizar sessao
+  if(sinfo.dev!=='—')document.getElementById('si-dev').textContent=sinfo.dev;
+  if(sinfo.vc!=='—')document.getElementById('si-vc').textContent=sinfo.vc;
+  if(sinfo.live!=='—')document.getElementById('si-live').textContent=sinfo.live;
+  if(sinfo.vis!=='—'){
+    document.getElementById('si-vis').textContent=sinfo.vis;
+    document.getElementById('cam-src').textContent=
+      sinfo.vis.includes('oculos')||sinfo.vis.includes('glasses')?'🕶️ Óculos Ray-Ban Meta':'📱 Câmera do Celular';
+  }
+  if(sinfo.up!=='—')document.getElementById('si-up').textContent=sinfo.up;
+  if(sinfo.ts!=='—')document.getElementById('si-ts').textContent=sinfo.ts;
+
+  if(ttftsNew.length){
+    const avg=Math.round(ttftsNew.reduce((a,b)=>a+b,0)/ttftsNew.length);
+    document.getElementById('si-ttft').textContent=avg+'ms';
+  }
+
+  // ultima descricao visual
+  if(lastDesc){
+    document.getElementById('last-desc').textContent=lastDesc;
+    document.getElementById('last-frame-ts').textContent='Última actualização: '+lastDescTs;
+  }
 }
 
-async function sendCmd() {
-  const text = document.getElementById('cmd-input').value.trim();
-  if (!text || !token) return;
-  await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/issues`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title: `remote-cmd ${new Date().toISOString()}`, body: text, labels: ['remote-cmd'] }),
-  });
-  document.getElementById('cmd-input').value = '';
-  alert('Comando enviado! A Baby vai processar na próxima iteração (vc27).');
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function start(){
+  setDot('warn','A ligar…');poll();
+  clearInterval(timer);timer=setInterval(poll,10000);
 }
 
-function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-function startPolling() {
-  setStatus('warn', 'A ligar…');
-  poll();
-  clearInterval(refreshTimer);
-  refreshTimer = setInterval(poll, 15000);
-}
-
-// Auto-start if token exists
-if (token) {
-  document.getElementById('token-card').style.display = 'none';
-  startPolling();
-} else {
-  setStatus('warn', 'Introduz o token GitHub PAT para começar.');
-}
+if(token){document.getElementById('token-card').style.display='none';start();}
+else{setDot('warn','Introduz o token GitHub para ver o monitor.');}
 </script>
 </body>
 </html>
