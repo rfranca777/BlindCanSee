@@ -8,42 +8,50 @@
   Esta pagina existe para UMA pessoa: um utilizador cego, com TalkBack, que abre este link no
   telefone e nao ve nada do que esta aqui.
 
-  A versao anterior tinha 180 bytes: so um meta-refresh, com <title> vazio e <body> vazio.
-  Funcionava para quem ve. Para ele era MUDA -- abria, o leitor de ecra nao tinha nada para
-  anunciar, e ele ficava sem saber se alguma coisa tinha comecado.
+  DUAS DECISOES QUE PARECEM DETALHE E NAO SAO:
 
-  Por isso agora:
-   - o <title> e a primeira coisa que o leitor de ecra le, e ja diz o que esta a acontecer;
-   - ha um link REAL, para o caso de o meta-refresh nao disparar. O comportamento do
-     meta-refresh com download no Chrome do Android NUNCA foi medido aqui, e nao se depende
-     de uma coisa que nao se mediu;
-   - o texto ensina o gesto certo para quem usa leitor de ecra: com TalkBack um toque
-     SELECCIONA e sao precisos DOIS para activar. Ensinar "toca uma vez" a quem nao ve o
-     ecra e pior do que nao dizer nada.
+  1. O meta-refresh esta a 4 s, nao a 0. A 0 s a pagina salta antes de o leitor de ecra acabar
+     de ler o titulo, e ele fica sem saber onde esta nem se algo comecou. Quatro segundos nao
+     custam nada a quem ve, e sao a unica orientacao de quem nao ve.
 
-  O meta-refresh continua a 0 s: quem ve nao perde tempo nenhum.
+  2. O texto avisa do dialogo do Chrome ("este tipo de arquivo pode danificar..."). Esse aviso
+     aparece SEMPRE que se baixa um .apk e e o obstaculo seguinte -- uma pagina que o ignora
+     deixa-o parado num ecra que nao esperava.
+
+  E o gesto dito e o certo para leitor de ecra: um toque SELECCIONA, sao precisos DOIS para
+  activar. Ensinar "toca uma vez" a quem nao ve e pior do que nao dizer nada.
 -->
-<meta http-equiv="refresh" content="0;url=https://github.com/rfranca777/BlindCanSee/releases/latest/download/app-release.apk">
+<meta http-equiv="refresh" content="4;url=https://github.com/rfranca777/BlindCanSee/releases/latest/download/app-release.apk">
 <style>
   body { font-family: system-ui, -apple-system, Roboto, sans-serif; background: #111; color: #fff;
-         margin: 0; padding: 6vw; line-height: 1.5; }
+         margin: 0; padding: 6vw; line-height: 1.55; }
   h1 { font-size: 1.6rem; margin: 0 0 1rem; }
   a.baixar { display: block; background: #f0a500; color: #111; text-decoration: none;
              font-size: 1.4rem; font-weight: 700; padding: 1.2rem; border-radius: 12px;
              text-align: center; margin: 1.5rem 0; }
-  p { font-size: 1.1rem; }
+  ol { font-size: 1.1rem; padding-left: 1.2rem; }
+  li { margin-bottom: .7rem; }
 </style>
 </head>
 <body>
   <h1>Baixando a vers&#227;o nova do BlindCanSee</h1>
-  <p>O download come&#231;a sozinho. Se n&#227;o come&#231;ar, toque no bot&#227;o abaixo.</p>
+  <p>O download come&#231;a sozinho em alguns segundos. Se n&#227;o come&#231;ar, toque no bot&#227;o abaixo.</p>
   <a class="baixar" href="https://github.com/rfranca777/BlindCanSee/releases/latest/download/app-release.apk">
     Baixar o aplicativo
   </a>
-  <p>
-    Quando o arquivo terminar de baixar, abra a notifica&#231;&#227;o de download e confirme a
-    instala&#231;&#227;o. Com o TalkBack ligado, deslize at&#233; ouvir <strong>Instalar</strong>
-    e toque duas vezes.
-  </p>
+  <h2>Os tr&#234;s passos</h2>
+  <ol>
+    <li>
+      O navegador pergunta se quer baixar mesmo assim, porque &#233; um aplicativo.
+      Deslize at&#233; ouvir <strong>Baixar mesmo assim</strong> e toque duas vezes.
+    </li>
+    <li>
+      Quando terminar, abra a <strong>notifica&#231;&#227;o de download</strong>.
+    </li>
+    <li>
+      Na tela que abrir, deslize at&#233; ouvir <strong>Instalar</strong> e toque duas vezes.
+      Depois &#233; s&#243; abrir a Baby.
+    </li>
+  </ol>
 </body>
 </html>
